@@ -26,7 +26,7 @@ class ReservationService:
         else:
             reservations = self.reservationRepository.findAllValidReservations( uid= user.id)
 
-        result = [ReserveListResponse(res) for res in reservations]
+        result = [ReserveListResponse.from_reservation(res) for res in reservations]
         return result
 
 

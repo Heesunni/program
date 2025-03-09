@@ -41,8 +41,8 @@ class Reservation(Base):
         return self
 
 
-    @classmethod
-    def validate_date(start_date: datetime,end_date: datetime):
+    @staticmethod
+    def validate_date( start_date: datetime, end_date: datetime):
         MINDATE_DIFF = 3  # 최대 인원수
 
         if start_date >= end_date:

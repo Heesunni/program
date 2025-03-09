@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Type
 
 from pydantic import BaseModel
 from pydantic import  Field
@@ -19,5 +20,17 @@ class ReserveListResponse(BaseModel):
     reg_date: datetime = Field(..., description="예약 등록 날짜")
     confirmed: bool = Field(default=False, description="예약 확정 여부")
 
+    @classmethod
+    def from_reservation(cls: Type["ReserveListResponse"], reservation: "Reservation") -> "ReserveListResponse":
+        return cls(
+            id = reservation.id,
+            user_id = reservation.user_id,
+            regnum = reservation.regnum,
+            start_date = reservation.start_date,
+            end_date = reservation.end_date,
+            reg_date = reservation.reg_date,
+            confirmed = reservation.confirmed
+        )
+
     class Config:
-        from_attributes = True  # ✅ ORM 객체 변환 가능 (Pydantic v2)
+        from_attributes = True
