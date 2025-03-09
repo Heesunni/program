@@ -1,3 +1,4 @@
+import asyncio
 from typing import List
 from fastapi import APIRouter, Depends, status
 from common.response_wrapper import ResponseDto
@@ -24,6 +25,7 @@ router = APIRouter(
 def get_reserve_service(db: Session = Depends(get_db)) :
     return ReservationService(db)
 
+reservation_lock = asyncio.Lock()  # 전역 락 추가
 ##예약 조회
 @router.get(
     "",
@@ -45,13 +47,14 @@ def getReservationList(
     status_code     = status.HTTP_200_OK,
     response_model  = ResponseDto[ReserveIdResponse]
 )
-def getReservation(
+async def getReservation(
     req: UpsertReserveRequest,
     user: User = Depends(getCurrentUserInfo),
     reservationServie : ReservationService = Depends(get_reserve_service)
 ):
-    result = reservationServie.createReservation(req, user)
-    return ResponseDto( data = result)
+    async with reservation_lock:
+        result = reservationServie.createReservation(req, user)
+        return ResponseDto( data = result)
 
 
 ##예약 수정
@@ -61,14 +64,15 @@ def getReservation(
     status_code     = status.HTTP_200_OK,
     response_model  = ResponseDto[ReserveIdResponse]
 )
-def updateReservation(
+async def updateReservation(
     reserve_id: int,
     req: UpsertReserveRequest,
     user: User = Depends(getCurrentUserInfo),
     reservationServie : ReservationService = Depends(get_reserve_service)
 ):
-    result = reservationServie.updateReservation( reserve_id, req, user)
-    return ResponseDto( data = result)
+    async with reservation_lock:
+        result = reservationServie.updateReservation( reserve_id, req, user)
+        return ResponseDto( data = result)
 
 
 ##예약 확정
@@ -78,13 +82,14 @@ def updateReservation(
     status_code     = status.HTTP_200_OK,
     response_model  = ResponseDto[ReserveIdResponse]
 )
-def confirmReservation(
+async def confirmReservation(
     reservation_id: int,
     user: User = Depends(getCurrentUserInfo),
     reservationServie : ReservationService = Depends(get_reserve_service)
 ):
-    result = reservationServie.confirmReservation( reservation_id, user)
-    return ResponseDto( data = result)
+    async with reservation_lock:
+        result = reservationServie.confirmReservation( reservation_id, user)
+        return ResponseDto( data = result)
 
 
 ##예약 삭제
@@ -94,10 +99,11 @@ def confirmReservation(
     status_code     = status.HTTP_200_OK,
     response_model  = ResponseDto[ReserveIdResponse]
 )
-def deleteReservation(
+async def deleteReservation(
     reservation_id: int,
     user: User = Depends(getCurrentUserInfo),
     reservationServie : ReservationService = Depends(get_reserve_service)
 ):
-    result = reservationServie.deleteReservation( reservation_id, user)
-    return ResponseDto( data = result)
+    async with reservation_lock:
+        result = reservationServie.deleteReservation( reservation_id, user)
+        return ResponseDto( data = result)
