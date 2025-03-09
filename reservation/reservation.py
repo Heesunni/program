@@ -30,20 +30,23 @@ class Reservation(Base):
         self.canceled = True
         return self
 
-    def doConfirm(self) :
-        self.confirmed = True
+    def doConfirm(self, isconfirmed: bool) :
+        self.confirmed = isconfirmed
         return self
 
     def updateReservation(self, start_date: datetime, end_date: datetime, regnum: int):
         self.start_date = start_date
         self.end_date = end_date
         self.regnum = regnum
-        return self
+
 
 
     @staticmethod
     def validate_before3date(start_date: datetime, end_date: datetime):
         MINDATE_DIFF = 3  # 최대 인원수
+
+        if start_date >= end_date:
+            raise ValueError("시작시간이 종료시간보다 클 수 없습니다.")
 
         # 신청일로부터 차이가 3일 이상인지 체크
         today = datetime.now().date()

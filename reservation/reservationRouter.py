@@ -62,12 +62,12 @@ def getReservation(
     response_model  = ResponseDto[ReserveIdResponse]
 )
 def updateReservation(
-    reservation_id: int,
+    reserve_id: int,
     req: UpsertReserveRequest,
     user: User = Depends(getCurrentUserInfo),
     reservationServie : ReservationService = Depends(get_reserve_service)
 ):
-    result = reservationServie.updateReservation( reservation_id, req, user)
+    result = reservationServie.updateReservation( reserve_id, req, user)
     return ResponseDto( data = result)
 
 

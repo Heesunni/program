@@ -1,6 +1,7 @@
-from typing import List
+from typing import List, Optional
 from sqlalchemy.orm import Session
 from common.enum import GradeEnum
+from config.transaction import transactional
 from .dto.reservationRequest import UpsertReserveRequest
 from .dto.reservationResponse import ReserveIdResponse, ReserveListResponse
 from .reservation import Reservation
@@ -52,23 +53,29 @@ class ReservationService:
         except Exception as e:
             raise HTTPException(500, str(e))
 
-    def updateReservation(self, reserve_id: int, req: UpsertReserveRequest, user: User):
+    @transactional
+    def updateReservation(self, reserve_id: int, req: UpsertReserveRequest, user: User, session: Session = None):
         try:
             reservation: Reservation
-
+            already_confirmed = False
             ## 예약정보 가져오기( 권한에 따라 분류)
-            # 어드민은 모든예약 업데이트 가능
+            # 어드민은 모든예약 업데이트 가능 (.. 확정하고서도 수정가능한건가? 우선.. 문제에서 유저만 해당 조건이 있어서 어드민에서는 제외 )
             if user.grade == GradeEnum.ADMIN:
                 reservation = self.reservationRepository.findOneReservationById(
-                    reserve_id = reserve_id
+                    reserve_id = reserve_id,
+                    needLock=True
                 )
+                ##만약 확정상태라면, 인원수 확인을할때 해당 reservation regnum 빼고 계산하기 구분자
+                if reservation.confirmed == True:
+                    already_confirmed = True
 
             # 일반유저는 본인의 것에 한에서만 확정전에 업데이트 가능
             else:
                 reservation = self.reservationRepository.findOneReservationById(
                     reserve_id = reserve_id,
                     uid = user.id,
-                    confirmed = False
+                    confirmed = False,
+                    needLock=True
                 )
 
             if reservation == None:
@@ -76,11 +83,14 @@ class ReservationService:
 
             ## validation check
             Reservation.validate_before3date(start_date=req.start_date, end_date=req.end_date)
-            self.validate_maxcnt(req)
 
+            if reservation.confirmed == True:
+                self.validate_maxcnt(req, reservation.id)
+            else:
+                self.validate_maxcnt(req)
 
             # 예약 수정하기
-            reservation = reservation.updateReservation(
+            reservation.updateReservation(
                 start_date = req.start_date,
                 end_date = req.end_date,
                 regnum = req.regnum
@@ -95,7 +105,8 @@ class ReservationService:
         except Exception as e:
             raise HTTPException(500, str(e))
 
-    def deleteReservation(self, reserve_id: int, user: User):
+    @transactional
+    def deleteReservation(self, reserve_id: int, user: User, session: Session = None):
         try:
             ## 예약정보 가져오기( 권한에 따라 분류)
             # 어드민은 모든예약 삭제 가능
@@ -126,8 +137,8 @@ class ReservationService:
 
         except Exception as e:
             raise HTTPException(500, str(e))
-
-    def confirmReservation(self, reserve_id: int, user: User):
+    @transactional
+    def confirmReservation(self, reserve_id: int, user: User, session: Session = None):
         try:
             # 어드민만 예약 확정 가능
             if user.grade != GradeEnum.ADMIN:
@@ -136,7 +147,8 @@ class ReservationService:
             if user.grade == GradeEnum.ADMIN:
                 reservation = self.reservationRepository.findOneReservationById(
                     reserve_id = reserve_id,
-                    confirmed = False
+                    confirmed = False,
+                    needLock=True
                 )
 
             if reservation == None:
@@ -146,11 +158,12 @@ class ReservationService:
             self.validate_maxcnt(UpsertReserveRequest(
                 start_date = reservation.start_date,
                 end_date = reservation.end_date,
-                regnum = reservation.regnum
+                regnum = reservation.regnum,
+                needLock=True
             ))
 
             ##예약 확정하기
-            reservation = reservation.doConfirm()
+            reservation = reservation.doConfirm(True)
             result = self.reservationRepository.update_reservation(reservation= reservation)
             return ReserveIdResponse( id = result.id)
 
@@ -160,13 +173,14 @@ class ReservationService:
         except Exception as e:
             raise HTTPException(500, str(e))
 
-    def validate_maxcnt(self, req: UpsertReserveRequest):
+    def validate_maxcnt(self, req: UpsertReserveRequest, extract_reservid: Optional[int] = 0):
         MAXCNT = 50000  # 최대 인원수
 
         # 해당 기간에 신청 가능한 인원수 체크
         current_count = self.reservationRepository.getSumReservationByHours(
-            start_date=req.start_date,
-            end_date=req.end_date
+            start_date = req.start_date,
+            end_date = req.end_date,
+            extract_reservid = extract_reservid
         )
 
         if current_count + req.regnum > MAXCNT:
