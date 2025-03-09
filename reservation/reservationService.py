@@ -32,7 +32,7 @@ class ReservationService:
 
     def createReservation(self, req: UpsertReserveRequest, user: User):
         try:
-            Reservation.validate_date(start_date=req.start_date, end_date=req.end_date)
+            Reservation.validate_before3date(start_date=req.start_date, end_date=req.end_date)
             self.validate_maxcnt(req)
             
             # 예약 생성하기
@@ -75,7 +75,7 @@ class ReservationService:
                 raise HTTPException(404, "수정가능한 예약정보가 없습니다.")
 
             ## validation check
-            Reservation.validate_date(start_date=req.start_date, end_date=req.end_date)
+            Reservation.validate_before3date(start_date=req.start_date, end_date=req.end_date)
             self.validate_maxcnt(req)
 
 

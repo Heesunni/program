@@ -42,11 +42,8 @@ class Reservation(Base):
 
 
     @staticmethod
-    def validate_date( start_date: datetime, end_date: datetime):
+    def validate_before3date(start_date: datetime, end_date: datetime):
         MINDATE_DIFF = 3  # 최대 인원수
-
-        if start_date >= end_date:
-            raise HTTPException(422, "시작시간이 종료시간보다 클 수 없습니다")
 
         # 신청일로부터 차이가 3일 이상인지 체크
         today = datetime.now().date()
